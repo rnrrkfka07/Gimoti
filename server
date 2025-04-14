@@ -1,0 +1,96 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Threading;
+using System.Net;
+using System.Net.Sockets;
+
+namespace Server
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+
+            //끝점 생성 (서버 IP 및 포트)
+            IPEndPoint endPoint = new IPEndPoint(IPAddress.Parse("172.16.11.109"), 8211);// 이거 돌리는 곳 IP 적으셈 서버 ip
+            //접속을 처리하는 소켓(데이터 통신 X)
+            Socket listenSocket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+
+            //접속을 처리하는 소켓에 IP 및 포트 할당
+            listenSocket.Bind(endPoint);
+            listenSocket.Listen(10); //최대 대기 수
+            
+            //접속한 클라이언트와 통신할 새 소켓 생성
+            Thread listen = new Thread(new ThreadStart(Listen));//
+
+            listen.Start();//
+
+
+            listen.Join();
+
+            void Listen()
+            {
+                Socket socket = listenSocket.Accept();
+                Thread thread = new Thread(new ThreadStart(new SocketManager(socket).start));
+                SocketManager.sockets.Add(socket);
+                foreach (Socket sock in SocketManager.sockets)
+                {
+                    Console.WriteLine(sock.RemoteEndPoint);
+                }
+                thread.Start();
+                new Thread(new ThreadStart(Listen)).Start();
+                thread.Join();
+                SocketManager.sockets.Remove(socket);
+            }
+            /*byte[] recvData = new byte[1024]; // 데이터를 받을 변수(byte 배열 형태로 받음)
+            while (true)
+            {
+                int recvBytes = clientSocket.Receive(recvData); //데이터 송신(데이터 길이)
+                string str = Encoding.UTF8.GetString(recvData, 0, recvBytes); // 송신한 데이터를 문자열로 변환
+                if (str == "exit")
+                {
+                    break; // 송신한 데이터가 exit 일 경우 루프 종료
+                }
+                Console.WriteLine($"Client : {str}"); //송신한 데이터 출력
+            }*/
+        }
+        
+    }
+    class SocketManager
+    {
+        public static List<Socket> sockets = new List<Socket>();
+        public Socket socket;
+        public SocketManager(Socket socket)
+        {
+            this.socket = socket;
+        }
+        public void start()
+        {
+            byte[] recvData = new byte[1024];
+            byte[] sendData = new byte[1024];
+            int recvBytes;
+            string str;
+            while (true)
+            {
+                recvBytes = socket.Receive(recvData); //데이터 송신(데이터 길이)
+                str = Encoding.UTF8.GetString(recvData, 0, recvBytes); // 송신한 데이터를 문자열로 변환
+                if (str == "exit")
+                {
+                    break; // 송신한 데이터가 exit 일 경우 루프 종료
+                }
+                Console.WriteLine($"{socket.RemoteEndPoint} : {str}"); //송신한 데이터 출력
+                sendData = Encoding.UTF8.GetBytes(str);
+                foreach(Socket sock in sockets)
+                {
+                    if (sock != socket)
+                    {
+                        sock.Send(sendData);
+                    }
+                }
+            }
+        }
+    }
+}
