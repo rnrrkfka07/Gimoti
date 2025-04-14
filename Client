@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Threading;
 using System.Net;
 using System.Net.Sockets;
 
@@ -22,6 +23,8 @@ namespace Client
             Console.WriteLine("Connect...");
             byte[] recvData = new byte[1024];
             int recvBytes;
+            Thread receive = new Thread(new ThreadStart(listen));
+            receive.Start();
             while (true)
             {
                 String str = Console.ReadLine(); // 콘솔에서 문자열을 입력
@@ -31,9 +34,16 @@ namespace Client
                 {
                     break;
                 }
-                recvBytes = socket.Receive(recvData);
-                str = Encoding.UTF8.GetString(recvData, 0, recvBytes);
-                Console.WriteLine(str);
+                
+            }
+            void listen()
+            {
+                while (true)
+                {
+                    recvBytes = socket.Receive(recvData);
+                    String str = Encoding.UTF8.GetString(recvData, 0, recvBytes);
+                    Console.WriteLine(str);
+                }
             }
             socket.Close();
         }
