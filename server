@@ -15,7 +15,7 @@ namespace Server
         {
 
             //끝점 생성 (서버 IP 및 포트)
-            IPEndPoint endPoint = new IPEndPoint(IPAddress.Parse("172.16.11.109"), 8211);// 이거 돌리는 곳 IP 적으셈 서버 ip
+            IPEndPoint endPoint = new IPEndPoint(IPAddress.Parse("172.31.18.18"), 8211);// 이거 돌리는 곳 IP 적으셈 서버 ip
             //접속을 처리하는 소켓(데이터 통신 X)
             Socket listenSocket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
 
@@ -33,7 +33,9 @@ namespace Server
 
             void Listen()
             {
+                Console.WriteLine("listen start");
                 Socket socket = listenSocket.Accept();
+                Console.WriteLine("Connect");
                 Thread thread = new Thread(new ThreadStart(new SocketManager(socket).start));
                 SocketManager.sockets.Add(socket);
                 foreach (Socket sock in SocketManager.sockets)
@@ -76,20 +78,27 @@ namespace Server
             while (true)
             {
                 recvBytes = socket.Receive(recvData); //데이터 송신(데이터 길이)
-                str = Encoding.UTF8.GetString(recvData, 0, recvBytes); // 송신한 데이터를 문자열로 변환
-                if (str == "exit")
-                {
-                    break; // 송신한 데이터가 exit 일 경우 루프 종료
-                }
-                Console.WriteLine($"{socket.RemoteEndPoint} : {str}"); //송신한 데이터 출력
-                sendData = Encoding.UTF8.GetBytes(str);
-                foreach(Socket sock in sockets)
-                {
-                    if (sock != socket)
-                    {
-                        sock.Send(sendData);
-                    }
-                }
+                //str = Encoding.UTF8.GetString(recvData, 0, recvBytes); // 송신한 데이터를 문자열로 변환
+                //if (str == "exit")
+                //{
+                //    break; // 송신한 데이터가 exit 일 경우 루프 종료
+                //}
+                float receiveData = BitConverter.ToSingle(recvData);
+                byte[] byteX = new byte[4];
+                byte[] byteY = new byte[4];
+                Array.Copy(recvData, 0, byteX, 0, 4);
+                Array.Copy(recvData, 4, byteY, 0, 4);
+                float x = BitConverter.ToSingle(byteX);
+                float y = BitConverter.ToSingle(byteY);
+                Console.WriteLine($"{socket.RemoteEndPoint} : {x} {y}"); //송신한 데이터 출력
+                //sendData = Encoding.UTF8.GetBytes(str);
+                //foreach(Socket sock in sockets)
+                //{
+                //    if (sock != socket)
+                //    {
+                //        sock.Send(sendData);
+                //    }
+                //}
             }
         }
     }
