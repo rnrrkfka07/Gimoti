@@ -1,51 +1,77 @@
+using Unity.Profiling;
+using UnityEditor;
+using UnityEngine;
 using System;
+using System.Net;
+using System.Net.Sockets;
+using JetBrains.Annotations;
+using UnityEngine.UI;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Threading;
-using System.Net;
-using System.Net.Sockets;
+using System.Globalization;
 
-namespace Client
+public class NewMonoBehaviourScript : MonoBehaviour
 {
-    class Program
+    [SerializeField]
+    private float moveSpeed;
+    private Animator animator;
+    private float nextX = 0;
+    private float nextY = 0;
+    public GameObject obj;
+    IPEndPoint endPoint = new IPEndPoint(IPAddress.Parse("172.16.17.71"), 2222);
+        //소켓 생성
+    Socket socket;
+    
+    void Start()
     {
-        static void Main(string[] args)
-        {
-            //끝점 생성 (서버 IP 및 포트)
-            IPEndPoint endPoint = new IPEndPoint(IPAddress.Parse("172.16.11.109"), 8211);// 아까 서버IP 및 포트랑 같은거 적으셈
-            //소켓 생성
-            Socket socket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+        animator = GetComponent<Animator>();
+        Instantiate(obj, new Vector2(1,1), Quaternion.identity);
+        //끝점 생성 (서버 IP 및 포트)
+        socket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
 
-            //소켓을 끝점에 연결
-            socket.Connect(endPoint);
-            Console.WriteLine("Connect...");
-            byte[] recvData = new byte[1024];
-            int recvBytes;
-            Thread receive = new Thread(new ThreadStart(listen));
-            receive.Start();
-            while (true)
-            {
-                String str = Console.ReadLine(); // 콘솔에서 문자열을 입력
-                byte[] sendData = Encoding.UTF8.GetBytes(str); // 입력받은 문자열을 byte로 변환
-                socket.Send(sendData); // byte로 변환된 문자열을 서버에 전송
-                if (str == "exit")
-                {
-                    break;
-                }
-                
-            }
-            void listen()
-            {
-                while (true)
-                {
-                    recvBytes = socket.Receive(recvData);
-                    String str = Encoding.UTF8.GetString(recvData, 0, recvBytes);
-                    Console.WriteLine(str);
-                }
-            }
-            socket.Close();
+        //소켓을 끝점에 연결
+        socket.Connect(endPoint);
+        Console.WriteLine("Connect...");
+    }
+
+    void Update()
+    {
+        nextX = Input.GetAxis("Horizontal");
+        nextY = Input.GetAxis("Vertical");
+ 
+        if(nextX == 0f && nextY == 0f){
+            animator.SetInteger("AnimationState", 0);
         }
+        else{
+            animator.SetInteger("AnimationState", 1);
+            transform.Translate(new Vector2(nextX, nextY).normalized * Time.deltaTime * moveSpeed);
+        }
+
+        if(Input.GetKeyDown(KeyCode.E)){
+            Instantiate(obj, transform.position, Quaternion.identity);
+        }  
+
+        byte[] str = Encoding.UTF8.GetBytes(transform.position.ToString());
+        //byte[] sendBuff = Encoding.UTF8.GetBytes(str);
+        byte[] byteX =  System.BitConverter.GetBytes(transform.position.x);
+        byte[] byteY =  System.BitConverter.GetBytes(transform.position.y);
+        byte[] sendData = new byte[byteX.Length + byteY.Length];
+        Array.Copy(byteX, 0, sendData, 0, byteX.Length);
+        Array.Copy(byteY, 0, sendData, byteX.Length, byteY.Length);
+        socket.Send(sendData);
+            
+        float x;
+        float y;
+        byte[] data = new byte[1000];
+        int bytes = 0;
+        bytes = socket.Receive(data);
+        Array.Copy(data, 0, byteX, 0, 4);
+        Array.Copy(data, 4, byteY, 0, 4);
+        x = BitConverter.ToSingle(byteX);
+        y = BitConverter.ToSingle(byteY);
+        IPEndPoint ip = (IPEndPoint)socket.RemoteEndPoint;
+        Debug.Log($"{ip.Address} : {x} , {y}");
     }
 }
